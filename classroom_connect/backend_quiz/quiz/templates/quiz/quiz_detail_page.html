@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ quiz.title }} - Classroom Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .quiz-form {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .question {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .question h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            line-height: 1.5;
+        }
+        
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .choice {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .choice:hover {
+            border-color: #4facfe;
+            background: #f0f8ff;
+        }
+        
+        .choice input[type="radio"] {
+            margin-right: 15px;
+            transform: scale(1.2);
+        }
+        
+        .choice label {
+            cursor: pointer;
+            flex: 1;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .submit-section {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .submit-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .submit-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .progress-bar {
+            background: #e9ecef;
+            height: 6px;
+            border-radius: 3px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .question-counter {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <a href="{% url 'quiz_list_page' %}" class="back-btn">← Back to Quizzes</a>
+    
+    <div class="container">
+        <div class="header">
+            <h1>{{ quiz.title }}</h1>
+            <p>Answer all questions to complete the quiz</p>
+        </div>
+        
+        <div class="content">
+            <div class="question-counter">
+                Question <span id="current-question">1</span> of {{ questions.count }}
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            
+            <form class="quiz-form" id="quiz-form" method="post" action="{% url 'quiz_result_page' quiz.id %}">
+                {% csrf_token %}
+                {% for question in questions %}
+                <div class="question" data-question="{{ forloop.counter }}" style="{% if forloop.counter != 1 %}display: none;{% endif %}">
+                    <h3>{{ question.text }}</h3>
+                    <div class="choices">
+                        {% if question.question_type == 'text' %}
+                            <div class="choice">
+                                <input type="text" 
+                                       name="question_{{ question.id }}" 
+                                       id="question_{{ question.id }}_text"
+                                       placeholder="Enter your answer"
+                                       required>
+                            </div>
+                        {% elif question.question_type == 'checkbox' %}
+                            {% for choice in question.choices.all %}
+                            <div class="choice">
+                                <input type="checkbox" 
+                                       name="question_{{ question.id }}" 
+                                       value="{{ choice.id }}" 
+                                       id="choice_{{ choice.id }}">
+                                <label for="choice_{{ choice.id }}">{{ choice.text }}</label>
+                            </div>
+                            {% endfor %}
+                        {% elif question.question_type == 'radio' %}
+                            {% for choice in question.choices.all %}
+                            <div class="choice">
+                                <input type="radio" 
+                                       name="question_{{ question.id }}" 
+                                       value="{{ choice.id }}" 
+                                       id="choice_{{ choice.id }}"
+                                       required>
+                                <label for="choice_{{ choice.id }}">{{ choice.text }}</label>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            {% for choice in question.choices.all %}
+                            <div class="choice">
+                                <input type="radio" 
+                                       name="question_{{ question.id }}" 
+                                       value="{{ choice.id }}" 
+                                       id="choice_{{ choice.id }}"
+                                       required>
+                                <label for="choice_{{ choice.id }}">{{ choice.text }}</label>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <div class="submit-section">
+                    <button type="button" id="next-btn" class="submit-btn" style="display: none;">Next Question</button>
+                    <button type="submit" id="submit-btn" class="submit-btn" style="display: none;">Submit Quiz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let currentQuestion = 1;
+        const totalQuestions = {{ questions.count }};
+        const progressBar = document.getElementById('progress-fill');
+        const currentQuestionSpan = document.getElementById('current-question');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        
+        function updateProgress() {
+            const progress = (currentQuestion / totalQuestions) * 100;
+            progressBar.style.width = progress + '%';
+            currentQuestionSpan.textContent = currentQuestion;
+        }
+        
+        function showQuestion(questionNum) {
+            // Hide all questions
+            document.querySelectorAll('.question').forEach(q => {
+                q.style.display = 'none';
+            });
+            
+            // Show current question
+            document.querySelector(`[data-question="${questionNum}"]`).style.display = 'block';
+            
+            // Update buttons
+            if (questionNum < totalQuestions) {
+                nextBtn.style.display = 'inline-block';
+                submitBtn.style.display = 'none';
+            } else {
+                nextBtn.style.display = 'none';
+                submitBtn.style.display = 'inline-block';
+            }
+            
+            updateProgress();
+        }
+        
+        function nextQuestion() {
+            if (currentQuestion < totalQuestions) {
+                currentQuestion++;
+                showQuestion(currentQuestion);
+            }
+        }
+        
+        // Event listeners
+        nextBtn.addEventListener('click', nextQuestion);
+        
+        // Check if current question is answered
+        document.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const questionDiv = this.closest('.question');
+                const questionNum = parseInt(questionDiv.dataset.question);
+                
+                if (questionNum === currentQuestion && currentQuestion < totalQuestions) {
+                    setTimeout(() => {
+                        nextQuestion();
+                    }, 500);
+                }
+            });
+        });
+        
+        // Initialize
+        updateProgress();
+    </script>
+</body>
+</html>

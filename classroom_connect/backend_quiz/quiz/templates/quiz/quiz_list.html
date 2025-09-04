@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quiz List</title>
+</head>
+<body>
+  <h1>Available Quizzes</h1>
+  <ul id="quiz-list"></ul>
+
+  <script>
+    fetch("/api/quizzes/")
+      .then(res => res.json())
+      .then(data => {
+        const list = document.getElementById("quiz-list");
+        data.forEach(quiz => {
+          const li = document.createElement("li");
+          li.innerHTML = `<a href="/quiz_detail_page/${quiz.id}/">${quiz.title}</a>`;
+          list.appendChild(li);
+        });
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results - Classroom Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .score-text {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .score-description {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .performance-bar {
+            background: #e9ecef;
+            height: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .performance-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border-radius: 10px;
+            transition: width 1s ease;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .feedback-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+        
+        .feedback-section h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .feedback-section p {
+            color: #856404;
+            line-height: 1.6;
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .celebration {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <a href="{% url 'quiz_list_page' %}" class="back-btn">← Back to Quizzes</a>
+    
+    <div class="container">
+        <div class="header">
+            <div class="celebration">🎉</div>
+            <h1>Quiz Completed!</h1>
+            <p>Great job on finishing the quiz</p>
+        </div>
+        
+        <div class="content">
+            <div class="result-card">
+                <div class="score-circle" id="score-circle">
+                    <span id="score-percentage">0%</span>
+                </div>
+                <div class="score-text">Your Score</div>
+                <div class="score-description" id="score-description">
+                    Calculating your results...
+                </div>
+                
+                <div class="performance-bar">
+                    <div class="performance-fill" id="performance-fill" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="feedback-section" id="feedback-section" style="display: none;">
+                <h3>📝 Feedback</h3>
+                <p id="feedback-text">Keep up the great work!</p>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="{% url 'quiz_list_page' %}" class="btn btn-primary">Take Another Quiz</a>
+                <a href="/admin/" class="btn btn-secondary">Admin Panel</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Simulate score calculation (in a real app, this would come from the server)
+        function calculateScore() {
+            // For demo purposes, generate a random score
+            const score = Math.floor(Math.random() * 40) + 60; // Score between 60-100
+            return score;
+        }
+        
+        function getFeedback(score) {
+            if (score >= 90) {
+                return {
+                    text: "Outstanding! You have excellent knowledge of this topic. Keep up the fantastic work!",
+                    color: "#28a745"
+                };
+            } else if (score >= 80) {
+                return {
+                    text: "Great job! You have a solid understanding of the material. Well done!",
+                    color: "#17a2b8"
+                };
+            } else if (score >= 70) {
+                return {
+                    text: "Good work! You have a decent grasp of the concepts. Consider reviewing some areas.",
+                    color: "#ffc107"
+                };
+            } else {
+                return {
+                    text: "Keep studying! Review the material and try again. You can do better!",
+                    color: "#dc3545"
+                };
+            }
+        }
+        
+        function displayResults() {
+            const score = calculateScore();
+            const feedback = getFeedback(score);
+            
+            // Update score display
+            document.getElementById('score-percentage').textContent = score + '%';
+            document.getElementById('score-description').textContent = `You scored ${score} out of 100`;
+            
+            // Update progress bar
+            document.getElementById('performance-fill').style.width = score + '%';
+            
+            // Update score circle color
+            document.getElementById('score-circle').style.background = feedback.color;
+            
+            // Show feedback
+            document.getElementById('feedback-text').textContent = feedback.text;
+            document.getElementById('feedback-section').style.display = 'block';
+        }
+        
+        // Animate the results on page load
+        window.addEventListener('load', function() {
+            setTimeout(displayResults, 1000);
+        });
+    </script>
+</body>
+</html>
