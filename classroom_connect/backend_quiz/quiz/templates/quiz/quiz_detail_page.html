@@ -194,7 +194,7 @@
                 <div class="progress-fill" id="progress-fill"></div>
             </div>
             
-            <form class="quiz-form" id="quiz-form" method="post" action="{% url 'quiz_result_page' quiz.id %}">
+            <form class="quiz-form" id="quiz-form">
                 {% csrf_token %}
                 {% for question in questions %}
                 <div class="question" data-question="{{ forloop.counter }}" style="{% if forloop.counter != 1 %}display: none;{% endif %}">
@@ -310,6 +310,78 @@
                     }, 500);
                 }
             });
+        });
+        
+        // Submit quiz function
+        function submitQuiz() {
+            const form = document.getElementById('quiz-form');
+            const formData = new FormData(form);
+            const answers = {};
+            
+            // Collect all answers
+            for (let [key, value] of formData.entries()) {
+                if (key.startsWith('question_')) {
+                    if (answers[key]) {
+                        // Handle multiple choice questions
+                        if (Array.isArray(answers[key])) {
+                            answers[key].push(value);
+                        } else {
+                            answers[key] = [answers[key], value];
+                        }
+                    } else {
+                        answers[key] = value;
+                    }
+                }
+            }
+            
+            // Submit to API
+            fetch('/api/results/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    quiz_id: {{ quiz.id }},
+                    answers: answers
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    // Replace current history entry with results page to prevent back navigation issues
+                    const url = new URL(window.location.origin + '{% url "quiz_result_page" quiz.id %}');
+                    url.searchParams.set('score', data.percentage);
+                    url.searchParams.set('correct', data.correct_answers);
+                    url.searchParams.set('total', data.total_questions);
+                    window.location.replace(url.toString());
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while submitting the quiz.');
+            });
+        }
+        
+        // Update submit button click handler
+        document.getElementById('submit-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            submitQuiz();
+        });
+        
+        // Clear navigation history when starting a new quiz
+        function clearNavigationHistory() {
+            // Replace current history entry to prevent going back to previous quiz results
+            if (window.history.replaceState) {
+                window.history.replaceState({page: 'quiz-taking', quizId: {{ quiz.id }}}, '', window.location.href);
+            }
+        }
+        
+        // Clear history on page load
+        window.addEventListener('load', function() {
+            clearNavigationHistory();
         });
         
         // Initialize

@@ -204,18 +204,20 @@
             </div>
             
             <div class="action-buttons">
-                <a href="{% url 'quiz_list_page' %}" class="btn btn-primary">Take Another Quiz</a>
+                <a href="{% url 'quiz_list_page' %}" class="btn btn-primary" onclick="clearHistoryAndNavigate()">Take Another Quiz</a>
                 <a href="/admin/" class="btn btn-secondary">Admin Panel</a>
             </div>
         </div>
     </div>
     
     <script>
-        // Simulate score calculation (in a real app, this would come from the server)
-        function calculateScore() {
-            // For demo purposes, generate a random score
-            const score = Math.floor(Math.random() * 40) + 60; // Score between 60-100
-            return score;
+        // Get score from URL parameters
+        function getScoreFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const score = parseInt(urlParams.get('score')) || 0;
+            const correct = parseInt(urlParams.get('correct')) || 0;
+            const total = parseInt(urlParams.get('total')) || 1;
+            return { score, correct, total };
         }
         
         function getFeedback(score) {
@@ -243,12 +245,12 @@
         }
         
         function displayResults() {
-            const score = calculateScore();
+            const { score, correct, total } = getScoreFromURL();
             const feedback = getFeedback(score);
             
             // Update score display
             document.getElementById('score-percentage').textContent = score + '%';
-            document.getElementById('score-description').textContent = `You scored ${score} out of 100`;
+            document.getElementById('score-description').textContent = `You scored ${correct} out of ${total} questions`;
             
             // Update progress bar
             document.getElementById('performance-fill').style.width = score + '%';
@@ -261,8 +263,47 @@
             document.getElementById('feedback-section').style.display = 'block';
         }
         
+        // Clear history and navigate to quiz list
+        function clearHistoryAndNavigate() {
+            // Clear the entire history stack and navigate to quiz list
+            if (window.history.replaceState) {
+                window.history.replaceState({page: 'quiz-list'}, '', '{% url "quiz_list_page" %}');
+            }
+            window.location.href = '{% url "quiz_list_page" %}';
+        }
+        
+        // Enhanced navigation management
+        function setupNavigationManagement() {
+            // Replace current history entry to prevent going back to quiz
+            if (window.history.replaceState) {
+                window.history.replaceState({
+                    page: 'quiz-result',
+                    quizId: '{{ quiz_id }}',
+                    timestamp: Date.now()
+                }, '', window.location.href);
+            }
+            
+            // Listen for back button events
+            window.addEventListener('popstate', function(event) {
+                // If user tries to go back from results, redirect to quiz list
+                if (event.state && event.state.page === 'quiz-result') {
+                    window.location.href = '{% url "quiz_list_page" %}';
+                } else {
+                    // Default behavior for other cases
+                    window.location.href = '{% url "quiz_list_page" %}';
+                }
+            });
+            
+            // Override the back button behavior
+            window.addEventListener('beforeunload', function(event) {
+                // This helps prevent navigation issues
+                return undefined;
+            });
+        }
+        
         // Animate the results on page load
         window.addEventListener('load', function() {
+            setupNavigationManagement();
             setTimeout(displayResults, 1000);
         });
     </script>

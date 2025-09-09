@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Quiz - Classroom Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+        
+        .questions-container {
+            margin-top: 30px;
+        }
+        
+        .question-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            position: relative;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .question-number {
+            background: #4facfe;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .remove-question {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .remove-question:hover {
+            background: #c82333;
+            transform: scale(1.05);
+        }
+        
+        .question-type {
+            margin-bottom: 20px;
+        }
+        
+        .question-type select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .choices-container {
+            margin-top: 20px;
+        }
+        
+        .choice-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+        }
+        
+        .choice-item input[type="text"] {
+            flex: 1;
+            margin-right: 15px;
+            border: none;
+            background: transparent;
+        }
+        
+        .choice-item input[type="checkbox"] {
+            margin-right: 15px;
+            transform: scale(1.2);
+        }
+        
+        .remove-choice {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .add-choice {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .add-question {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .submit-section {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .submit-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <a href="{% url 'quiz_list_page' %}" class="back-btn">← Back to Quizzes</a>
+    
+    <div class="container">
+        <div class="header">
+            <h1>Edit Quiz</h1>
+            <p>Modify your quiz questions and answers</p>
+        </div>
+        
+        <div class="content">
+            <form id="edit-quiz-form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="quiz-title">Quiz Title</label>
+                    <input type="text" id="quiz-title" name="title" value="{{ quiz.title }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quiz-description">Quiz Description</label>
+                    <textarea id="quiz-description" name="description" rows="3">{{ quiz.description }}</textarea>
+                </div>
+                
+                <div class="questions-container" id="questions-container">
+                    {% for question in quiz.questions.all %}
+                    <div class="question-card" data-question-index="{{ forloop.counter0 }}">
+                        <div class="question-header">
+                            <span class="question-number">Question {{ forloop.counter }}</span>
+                            <button type="button" class="remove-question" onclick="removeQuestion(this)">Remove Question</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Question Text</label>
+                            <input type="text" name="questions[{{ forloop.counter0 }}][text]" value="{{ question.text }}" required>
+                        </div>
+                        
+                        <div class="question-type">
+                            <label>Question Type</label>
+                            <select name="questions[{{ forloop.counter0 }}][type]" onchange="toggleChoices(this)">
+                                <option value="mcq" {% if question.question_type == 'mcq' %}selected{% endif %}>Multiple Choice (Single Answer)</option>
+                                <option value="checkbox" {% if question.question_type == 'checkbox' %}selected{% endif %}>Multiple Choice (Multiple Answers)</option>
+                                <option value="radio" {% if question.question_type == 'radio' %}selected{% endif %}>Radio Button</option>
+                                <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Text Input</option>
+                            </select>
+                        </div>
+                        
+                        <div class="choices-container" id="choices-{{ forloop.counter0 }}" {% if question.question_type == 'text' %}style="display: none;"{% endif %}>
+                            <label>Answer Choices</label>
+                            {% for choice in question.choices.all %}
+                            <div class="choice-item">
+                                <input type="checkbox" name="questions[{{ forloop.parentloop.counter0 }}][choices][{{ forloop.counter0 }}][is_correct]" {% if choice.is_correct %}checked{% endif %}>
+                                <input type="text" name="questions[{{ forloop.parentloop.counter0 }}][choices][{{ forloop.counter0 }}][text]" value="{{ choice.text }}" placeholder="Enter choice text" required>
+                                <button type="button" class="remove-choice" onclick="removeChoice(this)">Remove</button>
+                            </div>
+                            {% endfor %}
+                            <button type="button" class="add-choice" onclick="addChoice({{ forloop.counter0 }})">Add Choice</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <button type="button" class="add-question" onclick="addQuestion()">Add New Question</button>
+                
+                <div class="submit-section">
+                    <button type="submit" class="submit-btn">Update Quiz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let questionIndex = {{ quiz.questions.count }};
+        
+        function addQuestion() {
+            const container = document.getElementById('questions-container');
+            const questionCard = document.createElement('div');
+            questionCard.className = 'question-card';
+            questionCard.setAttribute('data-question-index', questionIndex);
+            
+            questionCard.innerHTML = `
+                <div class="question-header">
+                    <span class="question-number">Question ${questionIndex + 1}</span>
+                    <button type="button" class="remove-question" onclick="removeQuestion(this)">Remove Question</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Question Text</label>
+                    <input type="text" name="questions[${questionIndex}][text]" required>
+                </div>
+                
+                <div class="question-type">
+                    <label>Question Type</label>
+                    <select name="questions[${questionIndex}][type]" onchange="toggleChoices(this)">
+                        <option value="mcq">Multiple Choice (Single Answer)</option>
+                        <option value="checkbox">Multiple Choice (Multiple Answers)</option>
+                        <option value="radio">Radio Button</option>
+                        <option value="text">Text Input</option>
+                    </select>
+                </div>
+                
+                <div class="choices-container" id="choices-${questionIndex}">
+                    <label>Answer Choices</label>
+                    <div class="choice-item">
+                        <input type="checkbox" name="questions[${questionIndex}][choices][0][is_correct]">
+                        <input type="text" name="questions[${questionIndex}][choices][0][text]" placeholder="Enter choice text" required>
+                        <button type="button" class="remove-choice" onclick="removeChoice(this)">Remove</button>
+                    </div>
+                    <div class="choice-item">
+                        <input type="checkbox" name="questions[${questionIndex}][choices][1][is_correct]">
+                        <input type="text" name="questions[${questionIndex}][choices][1][text]" placeholder="Enter choice text" required>
+                        <button type="button" class="remove-choice" onclick="removeChoice(this)">Remove</button>
+                    </div>
+                    <button type="button" class="add-choice" onclick="addChoice(${questionIndex})">Add Choice</button>
+                </div>
+            `;
+            
+            container.appendChild(questionCard);
+            questionIndex++;
+            updateQuestionNumbers();
+        }
+        
+        function removeQuestion(button) {
+            if (document.querySelectorAll('.question-card').length <= 1) {
+                alert('At least one question is required.');
+                return;
+            }
+            
+            button.closest('.question-card').remove();
+            updateQuestionNumbers();
+        }
+        
+        function updateQuestionNumbers() {
+            const questions = document.querySelectorAll('.question-card');
+            questions.forEach((question, index) => {
+                const numberSpan = question.querySelector('.question-number');
+                numberSpan.textContent = `Question ${index + 1}`;
+                question.setAttribute('data-question-index', index);
+            });
+        }
+        
+        function toggleChoices(select) {
+            const questionCard = select.closest('.question-card');
+            const choicesContainer = questionCard.querySelector('.choices-container');
+            
+            if (select.value === 'text') {
+                choicesContainer.style.display = 'none';
+            } else {
+                choicesContainer.style.display = 'block';
+            }
+        }
+        
+        function addChoice(questionIndex) {
+            const choicesContainer = document.getElementById(`choices-${questionIndex}`);
+            const choiceCount = choicesContainer.querySelectorAll('.choice-item').length;
+            
+            const choiceItem = document.createElement('div');
+            choiceItem.className = 'choice-item';
+            choiceItem.innerHTML = `
+                <input type="checkbox" name="questions[${questionIndex}][choices][${choiceCount}][is_correct]">
+                <input type="text" name="questions[${questionIndex}][choices][${choiceCount}][text]" placeholder="Enter choice text" required>
+                <button type="button" class="remove-choice" onclick="removeChoice(this)">Remove</button>
+            `;
+            
+            choicesContainer.insertBefore(choiceItem, choicesContainer.querySelector('.add-choice'));
+        }
+        
+        function removeChoice(button) {
+            const choiceItem = button.closest('.choice-item');
+            const choicesContainer = choiceItem.parentElement;
+            
+            if (choicesContainer.querySelectorAll('.choice-item').length <= 1) {
+                alert('At least one choice is required.');
+                return;
+            }
+            
+            choiceItem.remove();
+        }
+        
+        // Form submission
+        document.getElementById('edit-quiz-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = {
+                title: formData.get('title'),
+                description: formData.get('description'),
+                questions: []
+            };
+            
+            // Collect questions
+            const questionCards = document.querySelectorAll('.question-card');
+            questionCards.forEach((card, index) => {
+                const questionData = {
+                    text: card.querySelector('input[name*="[text]"]').value,
+                    type: card.querySelector('select[name*="[type]"]').value,
+                    order: index,
+                    choices: []
+                };
+                
+                // Collect choices for non-text questions
+                if (questionData.type !== 'text') {
+                    const choiceItems = card.querySelectorAll('.choice-item');
+                    choiceItems.forEach((choiceItem, choiceIndex) => {
+                        const choiceData = {
+                            text: choiceItem.querySelector('input[type="text"]').value,
+                            is_correct: choiceItem.querySelector('input[type="checkbox"]').checked,
+                            order: choiceIndex
+                        };
+                        questionData.choices.push(choiceData);
+                    });
+                }
+                
+                data.questions.push(questionData);
+            });
+            
+            // Submit to server
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Quiz updated successfully!');
+                    window.location.href = '{% url "quiz_list_page" %}';
+                } else {
+                    alert('Error updating quiz: ' + result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating the quiz.');
+            });
+        });
+    </script>
+</body>
+</html>

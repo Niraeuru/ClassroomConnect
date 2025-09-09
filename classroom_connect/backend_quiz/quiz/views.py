@@ -28,11 +28,71 @@ def quiz_detail(request, pk):
 # POST quiz result (submit answers)
 @api_view(["POST"])
 def quiz_result(request):
-    # For now just return what user submitted
-    return Response({
-        "message": "Quiz result received",
-        "data": request.data
-    })
+    try:
+        quiz_id = request.data.get('quiz_id')
+        answers = request.data.get('answers', {})
+        
+        if not quiz_id:
+            return Response({"error": "Quiz ID is required"}, status=400)
+        
+        quiz = Quiz.objects.get(pk=quiz_id)
+        questions = quiz.questions.all()
+        
+        total_questions = questions.count()
+        correct_answers = 0
+        
+        for question in questions:
+            question_key = f"question_{question.id}"
+            user_answer = answers.get(question_key)
+            
+            if question.question_type in ['mcq', 'radio']:
+                # Single choice question
+                if user_answer:
+                    try:
+                        selected_choice = Choice.objects.get(id=user_answer, question=question)
+                        if selected_choice.is_correct:
+                            correct_answers += 1
+                    except Choice.DoesNotExist:
+                        pass
+            elif question.question_type == 'checkbox':
+                # Multiple choice question
+                if user_answer and isinstance(user_answer, list):
+                    correct_choices = question.choices.filter(is_correct=True).count()
+                    selected_correct = 0
+                    selected_incorrect = 0
+                    
+                    for choice_id in user_answer:
+                        try:
+                            choice = Choice.objects.get(id=choice_id, question=question)
+                            if choice.is_correct:
+                                selected_correct += 1
+                            else:
+                                selected_incorrect += 1
+                        except Choice.DoesNotExist:
+                            pass
+                    
+                    # Only count as correct if all correct choices are selected and no incorrect ones
+                    if selected_correct == correct_choices and selected_incorrect == 0:
+                        correct_answers += 1
+            elif question.question_type == 'text':
+                # Text input - for now, we'll count as correct if any answer is provided
+                # In a real app, you might want to implement text matching logic
+                if user_answer and user_answer.strip():
+                    correct_answers += 1
+        
+        percentage = round((correct_answers / total_questions) * 100) if total_questions > 0 else 0
+        
+        return Response({
+            "quiz_id": quiz_id,
+            "total_questions": total_questions,
+            "correct_answers": correct_answers,
+            "percentage": percentage,
+            "score": f"{correct_answers}/{total_questions}"
+        })
+    except Quiz.DoesNotExist:
+        return Response({"error": "Quiz not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
 
 def home_page(request):
     return render(request, "quiz/home.html")

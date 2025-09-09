@@ -190,6 +190,7 @@
         </div>
         
         <div class="content">
+            {% csrf_token %}
             {% if quizzes %}
                 <div class="quiz-grid">
                     {% for quiz in quizzes %}
@@ -219,14 +220,31 @@
     <a href="/admin/" class="admin-link">Admin Panel</a>
     
     <script>
+        // Clear navigation history when returning to quiz list
+        function clearNavigationHistory() {
+            // Replace current history entry to prevent going back to previous quiz results
+            if (window.history.replaceState) {
+                window.history.replaceState({page: 'quiz-list'}, '', window.location.href);
+            }
+        }
+        
+        // Clear history on page load
+        window.addEventListener('load', function() {
+            clearNavigationHistory();
+        });
+        
         async function deleteQuiz(quizId) {
             if (confirm('Are you sure you want to delete this quiz? This action cannot be undone.')) {
                 try {
+                    // Get CSRF token from meta tag or cookie
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                                    getCookie('csrftoken');
+                    
                     const response = await fetch(`/delete-quiz/${quizId}/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                            'X-CSRFToken': csrfToken
                         }
                     });
                     
@@ -239,9 +257,26 @@
                         alert('Error deleting quiz: ' + result.error);
                     }
                 } catch (error) {
+                    console.error('Error:', error);
                     alert('Error deleting quiz: ' + error.message);
                 }
             }
+        }
+        
+        // Helper function to get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
         }
     </script>
 </body>
