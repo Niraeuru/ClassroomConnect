@@ -1,10 +1,13 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Quiz, Question, Choice
+from .models import Quiz, Question, Choice, User
 from .serializers import QuizSerializer
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.db.models import Q
 import json
 
 # GET list of all quizzes
@@ -109,7 +112,12 @@ def quiz_detail_page(request, quiz_id):
 def quiz_result_page(request, quiz_id):
     return render(request, "quiz/quiz_result.html", {"quiz_id": quiz_id})
 
+@login_required
 def create_quiz(request):
+    if not request.user.is_admin():
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('student_dashboard')
+    
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -145,7 +153,12 @@ def create_quiz(request):
     
     return render(request, "quiz/create_quiz.html")
 
+@login_required
 def edit_quiz(request, quiz_id):
+    if not request.user.is_admin():
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('student_dashboard')
+    
     quiz = get_object_or_404(Quiz, pk=quiz_id)
     if request.method == 'POST':
         try:
@@ -184,9 +197,90 @@ def edit_quiz(request, quiz_id):
     
     return render(request, "quiz/edit_quiz.html", {'quiz': quiz})
 
+@login_required
 def delete_quiz(request, quiz_id):
+    if not request.user.is_admin():
+        return JsonResponse({'success': False, 'error': 'Access denied. Admin privileges required.'})
+    
     if request.method == 'POST':
         quiz = get_object_or_404(Quiz, pk=quiz_id)
         quiz.delete()
         return JsonResponse({'success': True})
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+# Authentication Views
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
+        else:
+            messages.error(request, 'Invalid username or password.')
+    
+    return render(request, 'quiz/login.html')
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
+
+def register_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        role = request.POST.get('role', 'student')
+        
+        if User.objects.filter(username=username).exists():
+            messages.error(request, 'Username already exists.')
+            return render(request, 'quiz/register.html')
+        
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            role=role
+        )
+        login(request, user)
+        return redirect('dashboard')
+    
+    return render(request, 'quiz/register.html')
+
+@login_required
+def dashboard(request):
+    if request.user.is_admin():
+        return redirect('admin_dashboard')
+    else:
+        return redirect('student_dashboard')
+
+@login_required
+def admin_dashboard(request):
+    if not request.user.is_admin():
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('student_dashboard')
+    
+    quizzes = Quiz.objects.all()
+    return render(request, 'quiz/admin_dashboard.html', {'quizzes': quizzes})
+
+@login_required
+def student_dashboard(request):
+    if not request.user.is_student():
+        messages.error(request, 'Access denied. Student privileges required.')
+        return redirect('admin_dashboard')
+    
+    search_query = request.GET.get('search', '')
+    quizzes = Quiz.objects.all()
+    
+    if search_query:
+        quizzes = quizzes.filter(
+            Q(title__icontains=search_query) | 
+            Q(description__icontains=search_query)
+        )
+    
+    return render(request, 'quiz/student_dashboard.html', {
+        'quizzes': quizzes,
+        'search_query': search_query
+    })

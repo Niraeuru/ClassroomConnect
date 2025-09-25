@@ -109,7 +109,7 @@
             border-top: 2px solid #e9ecef;
         }
         
-        .submit-btn {
+        .submit-btn, .nav-btn {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             border: none;
@@ -120,6 +120,17 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+            margin: 0 10px;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        }
+        
+        .nav-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
         }
         
         .submit-btn:hover {
@@ -127,7 +138,7 @@
             box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
         }
         
-        .submit-btn:disabled {
+        .submit-btn:disabled, .nav-btn:disabled {
             background: #6c757d;
             cursor: not-allowed;
             transform: none;
@@ -246,7 +257,8 @@
                 {% endfor %}
                 
                 <div class="submit-section">
-                    <button type="button" id="next-btn" class="submit-btn" style="display: none;">Next Question</button>
+                    <button type="button" id="prev-btn" class="nav-btn" style="display: none;">Previous Question</button>
+                    <button type="button" id="next-btn" class="nav-btn" style="display: none;">Next Question</button>
                     <button type="submit" id="submit-btn" class="submit-btn" style="display: none;">Submit Quiz</button>
                 </div>
             </form>
@@ -258,6 +270,7 @@
         const totalQuestions = {{ questions.count }};
         const progressBar = document.getElementById('progress-fill');
         const currentQuestionSpan = document.getElementById('current-question');
+        const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
         const submitBtn = document.getElementById('submit-btn');
         
@@ -277,10 +290,24 @@
             document.querySelector(`[data-question="${questionNum}"]`).style.display = 'block';
             
             // Update buttons
-            if (questionNum < totalQuestions) {
+            if (questionNum === 1) {
+                // First question
+                prevBtn.style.display = 'none';
+                if (totalQuestions > 1) {
+                    nextBtn.style.display = 'inline-block';
+                    submitBtn.style.display = 'none';
+                } else {
+                    nextBtn.style.display = 'none';
+                    submitBtn.style.display = 'inline-block';
+                }
+            } else if (questionNum < totalQuestions) {
+                // Middle questions
+                prevBtn.style.display = 'inline-block';
                 nextBtn.style.display = 'inline-block';
                 submitBtn.style.display = 'none';
             } else {
+                // Last question
+                prevBtn.style.display = 'inline-block';
                 nextBtn.style.display = 'none';
                 submitBtn.style.display = 'inline-block';
             }
@@ -295,22 +322,19 @@
             }
         }
         
+        function previousQuestion() {
+            if (currentQuestion > 1) {
+                currentQuestion--;
+                showQuestion(currentQuestion);
+            }
+        }
+        
         // Event listeners
         nextBtn.addEventListener('click', nextQuestion);
+        prevBtn.addEventListener('click', previousQuestion);
         
-        // Check if current question is answered
-        document.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                const questionDiv = this.closest('.question');
-                const questionNum = parseInt(questionDiv.dataset.question);
-                
-                if (questionNum === currentQuestion && currentQuestion < totalQuestions) {
-                    setTimeout(() => {
-                        nextQuestion();
-                    }, 500);
-                }
-            });
-        });
+        // Note: Automatic progression has been removed
+        // Users must now click Next Question button to proceed
         
         // Submit quiz function
         function submitQuiz() {
@@ -385,7 +409,7 @@
         });
         
         // Initialize
-        updateProgress();
+        showQuestion(1);
     </script>
 </body>
 </html>
