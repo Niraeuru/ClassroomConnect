@@ -174,7 +174,7 @@
     </style>
 </head>
 <body>
-    <a href="{% url 'quiz_list_page' %}" class="back-btn">← Back to Quizzes</a>
+    <a href="{% url 'student_dashboard' %}" class="back-btn">← Back to Dashboard</a>
     
     <div class="container">
         <div class="header">
@@ -204,8 +204,10 @@
             </div>
             
             <div class="action-buttons">
-                <a href="{% url 'quiz_list_page' %}" class="btn btn-primary" onclick="clearHistoryAndNavigate()">Take Another Quiz</a>
-                <a href="/admin/" class="btn btn-secondary">Admin Panel</a>
+                <a href="{% url 'student_dashboard' %}" class="btn btn-primary" onclick="clearHistoryAndNavigate()">Back to Dashboard</a>
+                {% if user.is_admin %}
+                    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Admin Panel</a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -263,13 +265,13 @@
             document.getElementById('feedback-section').style.display = 'block';
         }
         
-        // Clear history and navigate to quiz list
+        // Clear history and navigate to dashboard
         function clearHistoryAndNavigate() {
-            // Clear the entire history stack and navigate to quiz list
+            // Clear the entire history stack and navigate to dashboard
             if (window.history.replaceState) {
-                window.history.replaceState({page: 'quiz-list'}, '', '{% url "quiz_list_page" %}');
+                window.history.replaceState({page: 'dashboard'}, '', '{% url "student_dashboard" %}');
             }
-            window.location.href = '{% url "quiz_list_page" %}';
+            window.location.href = '{% url "student_dashboard" %}';
         }
         
         // Enhanced navigation management
@@ -285,12 +287,12 @@
             
             // Listen for back button events
             window.addEventListener('popstate', function(event) {
-                // If user tries to go back from results, redirect to quiz list
+                // If user tries to go back from results, redirect to dashboard
                 if (event.state && event.state.page === 'quiz-result') {
-                    window.location.href = '{% url "quiz_list_page" %}';
+                    window.location.href = '{% url "student_dashboard" %}';
                 } else {
                     // Default behavior for other cases
-                    window.location.href = '{% url "quiz_list_page" %}';
+                    window.location.href = '{% url "student_dashboard" %}';
                 }
             });
             

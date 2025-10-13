@@ -243,6 +243,19 @@
                         <label for="quiz-description">Description (Optional)</label>
                         <textarea id="quiz-description" name="description" rows="3" placeholder="Enter quiz description"></textarea>
                     </div>
+                    <div class="form-group">
+                        <label for="quiz-class">Class Assignment (Optional)</label>
+                        <select id="quiz-class" name="class_assigned_id">
+                            <option value="">No Class Assigned</option>
+                            {% for class in classes %}
+                                <option value="{{ class.id }}">{{ class.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="complete-by-date">Complete By Date (Optional)</label>
+                        <input type="datetime-local" id="complete-by-date" name="complete_by_date">
+                    </div>
                 </div>
                 
                 <!-- Questions Section -->
@@ -268,10 +281,10 @@
         
         // Question types
         const questionTypes = {
-            'mcq': 'Multiple Choice (Single)',
-            'checkbox': 'Multiple Choice (Multiple)',
-            'radio': 'Radio Button',
-            'text': 'Text Input'
+            'mcq_single': 'Multiple Choice (Single Answer)',
+            'mcq_multiple': 'Multiple Choice (Multiple Answers)',
+            'text': 'Text Input',
+            'true_false': 'True or False'
         };
         
         // Add question template
@@ -293,10 +306,10 @@
                         <label>Question Type</label>
                         <div class="question-type">
                             ${Object.entries(questionTypes).map(([key, label]) => 
-                                `<button type="button" class="type-btn ${key === 'mcq' ? 'active' : ''}" data-type="${key}">${label}</button>`
+                                `<button type="button" class="type-btn ${key === 'mcq_single' ? 'active' : ''}" data-type="${key}">${label}</button>`
                             ).join('')}
                         </div>
-                        <input type="hidden" name="question_${questionCount}_type" value="mcq">
+                        <input type="hidden" name="question_${questionCount}_type" value="mcq_single">
                     </div>
                     
                     <div class="choices-container" id="choices_${questionCount}">
@@ -337,8 +350,28 @@
                     } else {
                         choicesContainer.style.display = 'block';
                     }
+                    
+                    // Special handling for True/False questions
+                    if (this.dataset.type === 'true_false') {
+                        setupTrueFalseChoices(questionNum);
+                    }
                 });
             });
+        }
+        
+        // Setup True/False choices
+        function setupTrueFalseChoices(questionNum) {
+            const choicesContainer = document.getElementById(`choices_${questionNum}`);
+            choicesContainer.innerHTML = `
+                <div class="choice-item">
+                    <input type="text" value="True" readonly name="question_${questionNum}_choice_1_text">
+                    <input type="checkbox" name="question_${questionNum}_choice_1_correct"> Correct
+                </div>
+                <div class="choice-item">
+                    <input type="text" value="False" readonly name="question_${questionNum}_choice_2_text">
+                    <input type="checkbox" name="question_${questionNum}_choice_2_correct"> Correct
+                </div>
+            `;
         }
         
         // Add choice
@@ -369,6 +402,8 @@
             const quizData = {
                 title: formData.get('title'),
                 description: formData.get('description'),
+                class_assigned_id: formData.get('class_assigned_id') || null,
+                complete_by_date: formData.get('complete_by_date') || null,
                 questions: []
             };
             

@@ -75,9 +75,47 @@
         }
         
         .search-form {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr auto;
             gap: 15px;
             align-items: center;
+            width: 100%;
+        }
+        
+        .filter-section {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+            margin-top: 10px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 200px;
+        }
+        
+        .filter-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 600;
+        }
+        
+        .filter-select {
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #4facfe;
         }
         
         .search-input {
@@ -155,11 +193,75 @@
             border-left: 4px solid #4facfe;
             transition: all 0.3s ease;
             cursor: pointer;
+            position: relative;
         }
         
         .quiz-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+        
+        .quiz-card.completed {
+            border-left-color: #28a745;
+            background: #f8fff8;
+        }
+        
+        .quiz-card.completed .quiz-title {
+            color: #28a745;
+        }
+        
+        .completed-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #28a745;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .class-section {
+            margin-bottom: 40px;
+        }
+        
+        .class-title {
+            color: #333;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .class-quiz-count {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .no-class {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+        
+        .quiz-deadline {
+            color: #dc3545;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .quiz-deadline.past {
+            color: #6c757d;
         }
         
         .quiz-title {
@@ -214,6 +316,19 @@
             color: #666;
             font-style: italic;
         }
+
+        /* Keep Apply button aligned on the right edge of the grid */
+        .filter-section .search-btn {
+            justify-self: end;
+        }
+
+        /* Responsive collapse of filter columns */
+        @media (max-width: 992px) {
+            .filter-section { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
+        }
+        @media (max-width: 576px) {
+            .filter-section { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -232,45 +347,119 @@
                        placeholder="Search for quizzes by title or description..." 
                        value="{{ search_query }}">
                 <button type="submit" class="search-btn">Search</button>
-                {% if search_query %}
-                    <a href="{% url 'student_dashboard' %}" class="clear-btn">Clear</a>
+                {% if search_query or class_filter or completion_filter or sort_by != 'newest' %}
+                    <a href="{% url 'student_dashboard' %}" class="clear-btn">Clear All</a>
                 {% endif %}
+            
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label class="filter-label">Filter by Class:</label>
+                    <select name="class" class="filter-select">
+                        <option value="">All Classes</option>
+                        {% for class in classes %}
+                            <option value="{{ class.id }}" {% if class_filter == class.id|stringformat:"s" %}selected{% endif %}>
+                                {{ class.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Completion Status:</label>
+                    <select name="completion" class="filter-select">
+                        <option value="">All Quizzes</option>
+                        <option value="completed" {% if completion_filter == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="not_completed" {% if completion_filter == 'not_completed' %}selected{% endif %}>Not Completed</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Sort by:</label>
+                    <select name="sort" class="filter-select">
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                        <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="search-btn">Apply Filters</button>
+            </div>
             </form>
         </div>
         
         <div class="quizzes-section">
             <h2 class="section-title">Available Quizzes</h2>
             
-            {% if search_query %}
+            {% if search_query or class_filter or completion_filter %}
                 <div class="search-results">
                     {% if quizzes %}
-                        Found {{ quizzes.count }} quiz{{ quizzes.count|pluralize }} matching "{{ search_query }}"
+                        Found {{ quizzes.count }} quiz{{ quizzes.count|pluralize }} matching your criteria
                     {% else %}
-                        No quizzes found matching "{{ search_query }}"
+                        No quizzes found matching your criteria
                     {% endif %}
                 </div>
             {% endif %}
             
             {% if quizzes %}
-                <div class="quizzes-grid">
-                    {% for quiz in quizzes %}
-                        <div class="quiz-card">
-                            <h3 class="quiz-title">{{ quiz.title }}</h3>
-                            {% if quiz.description %}
-                                <p class="quiz-description">{{ quiz.description }}</p>
-                            {% endif %}
-                            <div class="quiz-meta">
-                                Created: {{ quiz.created_at|date:"M d, Y" }}
+                {% regroup quizzes by class_assigned as quizzes_by_class %}
+                {% for class_group in quizzes_by_class %}
+                    <div class="class-section">
+                        {% if class_group.grouper %}
+                            <div class="class-title">
+                                {{ class_group.grouper.name }}
+                                <span class="class-quiz-count">{{ class_group.list|length }} quiz{{ class_group.list|length|pluralize }}</span>
                             </div>
-                            <a href="{% url 'quiz_detail_page' quiz.id %}" class="take-quiz-btn">
-                                Take Quiz
-                            </a>
+                        {% else %}
+                            <div class="class-title">
+                                No Class Assigned
+                                <span class="class-quiz-count">{{ class_group.list|length }} quiz{{ class_group.list|length|pluralize }}</span>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="quizzes-grid">
+                            {% for quiz in class_group.list %}
+                                <div class="quiz-card {% if quiz.id in completed_quiz_ids %}completed{% endif %}">
+                                    {% if quiz.id in completed_quiz_ids %}
+                                        <div class="completed-badge">Completed</div>
+                                    {% endif %}
+                                    
+                                    <h3 class="quiz-title">{{ quiz.title }}</h3>
+                                    {% if quiz.description %}
+                                        <p class="quiz-description">{{ quiz.description }}</p>
+                                    {% endif %}
+                                    
+                                    <div class="quiz-meta">
+                                        Created: {{ quiz.created_at|date:"M d, Y" }}
+                                        {% if quiz.complete_by_date %}
+                                            <br>
+                                            <span class="quiz-deadline {% if quiz.complete_by_date < now %}past{% endif %}">
+                                                Due: {{ quiz.complete_by_date|date:"M d, Y" }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if quiz.my_attempts and quiz.my_attempts.0 %}
+                                        <div class="quiz-meta" style="color:#28a745; font-weight:600;">
+                                            Your Score: {{ quiz.my_attempts.0.score }}/{{ quiz.my_attempts.0.total_questions }} ({{ quiz.my_attempts.0.percentage }}%)
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if quiz.id in completed_quiz_ids %}
+                                        <div class="take-quiz-btn" style="background: #6c757d; cursor: not-allowed;">
+                                            Already Completed
+                                        </div>
+                                    {% else %}
+                                        <a href="{% url 'quiz_detail_page' quiz.id %}" class="take-quiz-btn">
+                                            Take Quiz
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
-                </div>
+                    </div>
+                {% endfor %}
             {% else %}
                 <div class="no-quizzes">
-                    {% if search_query %}
+                    {% if search_query or class_filter or completion_filter %}
                         No quizzes found matching your search criteria.
                     {% else %}
                         No quizzes are currently available.
@@ -281,3 +470,4 @@
     </div>
 </body>
 </html>
+

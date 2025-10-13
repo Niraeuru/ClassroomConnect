@@ -188,7 +188,7 @@
     </style>
 </head>
 <body>
-    <a href="{% url 'quiz_list_page' %}" class="back-btn">← Back to Quizzes</a>
+    <a href="{% url 'student_dashboard' %}" class="back-btn">← Back to Dashboard</a>
     
     <div class="container">
         <div class="header">
@@ -219,7 +219,7 @@
                                        placeholder="Enter your answer"
                                        required>
                             </div>
-                        {% elif question.question_type == 'checkbox' %}
+                        {% elif question.question_type == 'mcq_multiple' %}
                             {% for choice in question.choices.all %}
                             <div class="choice">
                                 <input type="checkbox" 
@@ -229,7 +229,7 @@
                                 <label for="choice_{{ choice.id }}">{{ choice.text }}</label>
                             </div>
                             {% endfor %}
-                        {% elif question.question_type == 'radio' %}
+                        {% elif question.question_type == 'true_false' %}
                             {% for choice in question.choices.all %}
                             <div class="choice">
                                 <input type="radio" 

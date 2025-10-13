@@ -34,10 +34,20 @@ class User(AbstractUser):
     def is_admin(self):
         return self.role == 'admin'
 
+class Class(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return self.name
+
 class Quiz(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, help_text="Optional description of the quiz")
+    class_assigned = models.ForeignKey(Class, on_delete=models.CASCADE, related_name="quizzes", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    complete_by_date = models.DateTimeField(null=True, blank=True, help_text="Optional deadline for quiz completion")
 
     def __str__(self):
         return self.title
@@ -45,15 +55,15 @@ class Quiz(models.Model):
 
 class Question(models.Model):
     QUESTION_TYPES = [
-        ('mcq', 'Multiple Choice (Single Answer)'),
-        ('checkbox', 'Multiple Choice (Multiple Answers)'),
+        ('mcq_single', 'Multiple Choice (Single Answer)'),
+        ('mcq_multiple', 'Multiple Choice (Multiple Answers)'),
         ('text', 'Text Input'),
-        ('radio', 'Radio Button'),
+        ('true_false', 'True or False'),
     ]
     
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
     text = models.CharField(max_length=500)
-    question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, default='mcq')
+    question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, default='mcq_single')
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -74,4 +84,19 @@ class Choice(models.Model):
 
     def __str__(self):
         return self.text
+
+
+class QuizAttempt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="quiz_attempts")
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts")
+    completed_at = models.DateTimeField(auto_now_add=True)
+    score = models.IntegerField(default=0)
+    total_questions = models.IntegerField(default=0)
+    percentage = models.FloatField(default=0.0)
+    
+    class Meta:
+        unique_together = ['user', 'quiz']  # One attempt per user per quiz
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.quiz.title} ({self.percentage}%)"
     

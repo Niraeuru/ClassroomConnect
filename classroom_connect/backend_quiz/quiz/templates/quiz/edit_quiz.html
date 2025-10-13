@@ -241,7 +241,7 @@
     </style>
 </head>
 <body>
-    <a href="{% url 'quiz_list_page' %}" class="back-btn">← Back to Quizzes</a>
+    <a href="{% url 'admin_dashboard' %}" class="back-btn">← Back to Dashboard</a>
     
     <div class="container">
         <div class="header">
@@ -278,9 +278,9 @@
                         <div class="question-type">
                             <label>Question Type</label>
                             <select name="questions[{{ forloop.counter0 }}][type]" onchange="toggleChoices(this)">
-                                <option value="mcq" {% if question.question_type == 'mcq' %}selected{% endif %}>Multiple Choice (Single Answer)</option>
-                                <option value="checkbox" {% if question.question_type == 'checkbox' %}selected{% endif %}>Multiple Choice (Multiple Answers)</option>
-                                <option value="radio" {% if question.question_type == 'radio' %}selected{% endif %}>Radio Button</option>
+                                <option value="mcq_single" {% if question.question_type == 'mcq_single' %}selected{% endif %}>Multiple Choice (Single Answer)</option>
+                                <option value="mcq_multiple" {% if question.question_type == 'mcq_multiple' %}selected{% endif %}>Multiple Choice (Multiple Answers)</option>
+                                <option value="true_false" {% if question.question_type == 'true_false' %}selected{% endif %}>True or False</option>
                                 <option value="text" {% if question.question_type == 'text' %}selected{% endif %}>Text Input</option>
                             </select>
                         </div>
@@ -332,9 +332,9 @@
                 <div class="question-type">
                     <label>Question Type</label>
                     <select name="questions[${questionIndex}][type]" onchange="toggleChoices(this)">
-                        <option value="mcq">Multiple Choice (Single Answer)</option>
-                        <option value="checkbox">Multiple Choice (Multiple Answers)</option>
-                        <option value="radio">Radio Button</option>
+                        <option value="mcq_single">Multiple Choice (Single Answer)</option>
+                        <option value="mcq_multiple">Multiple Choice (Multiple Answers)</option>
+                        <option value="true_false">True or False</option>
                         <option value="text">Text Input</option>
                     </select>
                 </div>
@@ -467,7 +467,7 @@
             .then(result => {
                 if (result.success) {
                     alert('Quiz updated successfully!');
-                    window.location.href = '{% url "quiz_list_page" %}';
+                    window.location.href = '{% url "admin_dashboard" %}';
                 } else {
                     alert('Error updating quiz: ' + result.error);
                 }

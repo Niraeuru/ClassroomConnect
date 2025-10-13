@@ -224,6 +224,9 @@
 </head>
 <body>
     <div class="container">
+        <form style="display:none;">
+            {% csrf_token %}
+        </form>
         <div class="header">
             <h1>Admin Dashboard</h1>
             <div class="user-info">
@@ -253,33 +256,49 @@
             <h2 class="section-title">Quiz Management</h2>
             
             {% if quizzes %}
-                <table class="quizzes-table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Description</th>
-                            <th>Created</th>
-                            <th>Questions</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for quiz in quizzes %}
-                            <tr>
-                                <td class="quiz-title">{{ quiz.title }}</td>
-                                <td class="quiz-description">{{ quiz.description|default:"No description" }}</td>
-                                <td>{{ quiz.created_at|date:"M d, Y" }}</td>
-                                <td>{{ quiz.questions.count }}</td>
-                                <td class="quiz-actions">
-                                    <a href="{% url 'quiz_detail_page' quiz.id %}" class="action-btn view-btn">View</a>
-                                    <a href="{% url 'edit_quiz' quiz.id %}" class="action-btn edit-btn">Edit</a>
-                                    <a href="#" class="action-btn delete-btn" 
-                                       onclick="deleteQuiz({{ quiz.id }})">Delete</a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                {% regroup quizzes by class_assigned as quizzes_by_class %}
+                {% for class_group in quizzes_by_class %}
+                    <div class="class-section">
+                        {% if class_group.grouper %}
+                            <div class="class-title">
+                                {{ class_group.grouper.name }}
+                                <span class="class-quiz-count">{{ class_group.list|length }} quiz{{ class_group.list|length|pluralize }}</span>
+                            </div>
+                        {% else %}
+                            <div class="class-title">
+                                No Class Assigned
+                                <span class="class-quiz-count">{{ class_group.list|length }} quiz{{ class_group.list|length|pluralize }}</span>
+                            </div>
+                        {% endif %}
+
+                        <table class="quizzes-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Description</th>
+                                    <th>Created</th>
+                                    <th>Questions</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quiz in class_group.list %}
+                                <tr>
+                                    <td class="quiz-title">{{ quiz.title }}</td>
+                                    <td class="quiz-description">{{ quiz.description|default:"No description" }}</td>
+                                    <td>{{ quiz.created_at|date:"M d, Y" }}</td>
+                                    <td>{{ quiz.questions.count }}</td>
+                                    <td class="quiz-actions">
+                                        <a href="{% url 'quiz_detail_page' quiz.id %}" class="action-btn view-btn">View</a>
+                                        <a href="{% url 'edit_quiz' quiz.id %}" class="action-btn edit-btn">Edit</a>
+                                        <a href="#" class="action-btn delete-btn" onclick="deleteQuiz({{ quiz.id }})">Delete</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endfor %}
             {% else %}
                 <div class="no-quizzes">
                     No quizzes created yet. <a href="{% url 'create_quiz' %}">Create your first quiz!</a>
@@ -315,3 +334,4 @@
     </script>
 </body>
 </html>
+
