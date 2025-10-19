@@ -10,6 +10,9 @@ from django.http import JsonResponse
 from django.db.models import Q, Prefetch
 from django.utils import timezone
 import json
+import io
+import re
+from typing import List
 
 # GET list of all quizzes
 @api_view(["GET"])
@@ -42,10 +45,12 @@ def quiz_result(request):
         quiz = Quiz.objects.get(pk=quiz_id)
         questions = quiz.questions.all()
         
-        total_questions = questions.count()
+        # Only auto-grade non-text questions
+        autograded_questions = questions.exclude(question_type='text')
+        total_questions = autograded_questions.count()
         correct_answers = 0
         
-        for question in questions:
+        for question in autograded_questions:
             question_key = f"question_{question.id}"
             user_answer = answers.get(question_key)
             
@@ -78,11 +83,6 @@ def quiz_result(request):
                     # Only count as correct if all correct choices are selected and no incorrect ones
                     if selected_correct == correct_choices and selected_incorrect == 0:
                         correct_answers += 1
-            elif question.question_type == 'text':
-                # Text input - for now, we'll count as correct if any answer is provided
-                # In a real app, you might want to implement text matching logic
-                if user_answer and user_answer.strip():
-                    correct_answers += 1
             elif question.question_type == 'true_false':
                 # True/False question
                 if user_answer is not None:
@@ -225,6 +225,313 @@ def create_quiz(request):
     # Get classes for the form
     classes = Class.objects.all()
     return render(request, "quiz/create_quiz.html", {'classes': classes})
+
+@login_required
+def generate_questions_from_document(request):
+    if not request.user.is_admin():
+        return JsonResponse({'success': False, 'error': 'Access denied. Admin privileges required.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
+
+    upload = request.FILES.get('document')
+    # New controls: allow separate counts for MCQ and Text
+    try:
+        mcq_count = int(request.POST.get('mcq_count', '0'))
+    except ValueError:
+        mcq_count = 0
+    try:
+        tf_count = int(request.POST.get('tf_count', '0'))
+    except ValueError:
+        tf_count = 0
+    try:
+        text_count = int(request.POST.get('text_count', '5'))
+    except ValueError:
+        text_count = 5
+    
+    # Hardcoded Gemini API key
+    gemini_api_key = "AIzaSyCxBRJ5agNpCLfC1IUVQtdJ2GYSzZs75gA"  
+
+    if not upload:
+        return JsonResponse({'success': False, 'error': 'No document uploaded'}, status=400)
+
+    filename = upload.name.lower()
+    text_content = ''
+
+    # Basic support: plain text files. Optional support for .pdf and .docx when packages are available.
+    if filename.endswith('.txt') or filename.endswith('.md'):
+        try:
+            bytes_data = upload.read()
+            text_content = bytes_data.decode('utf-8', errors='ignore')
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'Failed to read the uploaded file as text.'}, status=400)
+    elif filename.endswith('.pdf'):
+        try:
+            # Optional dependency: PyPDF2
+            from PyPDF2 import PdfReader  # type: ignore
+            reader = PdfReader(upload)
+            pages_text: List[str] = []
+            for page in reader.pages:
+                try:
+                    pages_text.append(page.extract_text() or '')
+                except Exception:
+                    pages_text.append('')
+            text_content = '\n'.join(pages_text)
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'PDF parsing failed. Please ensure PyPDF2 is installed or upload a .txt/.md file.'}, status=400)
+    elif filename.endswith('.docx'):
+        try:
+            # Optional dependency: python-docx
+            from docx import Document  # type: ignore
+            # Read uploaded InMemoryUploadedFile into Document
+            file_bytes = upload.read()
+            file_stream = io.BytesIO(file_bytes)
+            doc = Document(file_stream)
+            paragraphs = [p.text for p in doc.paragraphs]
+            text_content = '\n'.join(paragraphs)
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'DOCX parsing failed. Please ensure python-docx is installed or upload a .txt/.md file.'}, status=400)
+    else:
+        return JsonResponse({'success': False, 'error': 'Unsupported file type. Please upload a .txt, .md, .pdf or .docx file.'}, status=400)
+
+    # Simple sentence splitting
+    sentences = re.split(r'(?:\.|\?|\!)\s+', text_content)
+    cleaned = [s.strip() for s in sentences if len(s.strip()) > 20]
+    if not cleaned:
+        return JsonResponse({'success': False, 'error': 'The document does not contain enough readable text.'}, status=400)
+
+    def build_text_questions(sentences: List[str], count: int) -> List[dict]:
+        qs: List[dict] = []
+        for idx, sentence in enumerate(sentences[:max(0, count)]):
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            # Create an open-ended question prompt based on the sentence content
+            prompt = f"Explain in your own words: {sentence}"
+            qs.append({
+                'text': prompt,
+                'type': 'text',
+                'order': idx,
+                'choices': []
+            })
+        return qs
+
+    def build_mcq_questions(sentences: List[str], count: int) -> List[dict]:
+        qs: List[dict] = []
+        base_sentences = [s.strip() for s in sentences if s.strip()]
+        if not base_sentences:
+            return qs
+
+        for idx in range(min(count, len(base_sentences))):
+            correct_sentence = base_sentences[idx % len(base_sentences)]
+            # Create a question about which statement matches the content
+            question_text = "Which of the following statements is supported by the text?"
+
+            # Select distractor sentences from other parts of the text
+            distractors = []
+            j = 1
+            while len(distractors) < 3 and j < len(base_sentences):
+                candidate = base_sentences[(idx + j) % len(base_sentences)]
+                if candidate != correct_sentence and candidate not in distractors:
+                    distractors.append(candidate)
+                j += 1
+
+            # Truncate long sentences to keep choices readable
+            def truncate(s: str) -> str:
+                s = s.strip()
+                return (s[:140] + '…') if len(s) > 140 else s
+
+            choices_texts = [truncate(correct_sentence)] + [truncate(d) for d in distractors]
+            # Pad with generic distractors if needed
+            generic_pool = [
+                "A detail not discussed in the text.",
+                "A statement that contradicts the text.",
+                "An unrelated claim not supported by the text."
+            ]
+            k = 0
+            while len(choices_texts) < 4 and k < len(generic_pool):
+                choices_texts.append(generic_pool[k])
+                k += 1
+
+            choices = []
+            for c_idx, choice_text in enumerate(choices_texts[:4]):
+                choices.append({
+                    'text': choice_text,
+                    'is_correct': c_idx == 0,
+                    'order': c_idx
+                })
+
+            qs.append({
+                'text': question_text,
+                'type': 'mcq_single',
+                'order': idx,
+                'choices': choices
+            })
+        return qs
+
+    def build_tf_questions(sentences: List[str], count: int) -> List[dict]:
+        qs: List[dict] = []
+        base_sentences = [s.strip() for s in sentences if s.strip()]
+        if not base_sentences:
+            return qs
+        for idx in range(min(count, len(base_sentences))):
+            statement = base_sentences[idx % len(base_sentences)]
+            # Alternate truth value for variety
+            is_true = (idx % 2 == 0)
+            choices = [
+                {'text': 'True', 'is_correct': is_true, 'order': 0},
+                {'text': 'False', 'is_correct': not is_true, 'order': 1},
+            ]
+            qs.append({
+                'text': f"True or False: {statement}",
+                'type': 'true_false',
+                'order': idx,
+                'choices': choices
+            })
+        return qs
+
+    # Use Gemini API if key is set, otherwise fallback to basic generation
+    if gemini_api_key and gemini_api_key != "Enter api key here":
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Create prompt for Gemini with exact counts
+            prompt = f"""Read the text and ask {mcq_count} mcq questions, {tf_count} true/false questions, and {text_count} text based questions on it.
+
+            Text content:
+            {text_content[:4000]}  # Limit content to avoid token limits
+
+            For multiple choice questions:
+            - Create meaningful questions that test understanding of the content
+            - Provide 4 choices each with one correct answer
+            - Make incorrect choices plausible but clearly wrong
+            - Ask about key concepts, facts, and relationships from the text
+
+            For true/false questions:
+            - Create factually checkable statements from the text
+            - Mark the correct truth value in the JSON choices
+
+            For text questions:
+            - Create open-ended questions that require explanation or analysis
+            - Ask for definitions, explanations, or critical thinking about the content
+            - Make questions specific to the material
+
+            IMPORTANT: Generate EXACTLY {mcq_count} MCQ, EXACTLY {tf_count} True/False, and EXACTLY {text_count} Text questions. Total: {mcq_count + tf_count + text_count} questions.
+
+            Return the response as a JSON array with this exact format:
+            [
+                {{
+                    "text": "Question text here",
+                    "type": "mcq_single" or "true_false" or "text",
+                    "choices": [
+                        {{"text": "Choice 1", "is_correct": true}},
+                        {{"text": "Choice 2", "is_correct": false}},
+                        {{"text": "Choice 3", "is_correct": false}},
+                        {{"text": "Choice 4", "is_correct": false}}
+                    ]
+                }}
+            ]
+
+            For text questions, include an empty choices array: "choices": []
+            """
+            
+            response = model.generate_content(prompt)
+            ai_questions = json.loads(response.text)
+            
+            # Validate and format the response, ensuring exact counts
+            questions = []
+            mcq_generated = 0
+            tf_generated = 0
+            text_generated = 0
+            
+            for q in ai_questions:
+                if 'text' in q and 'type' in q:
+                    # Check if we need more of this type
+                    if q['type'] == 'mcq_single' and mcq_generated < mcq_count:
+                        question = {
+                            'text': q['text'],
+                            'type': q['type'],
+                            'order': len(questions),
+                            'choices': q.get('choices', [])
+                        }
+                        questions.append(question)
+                        mcq_generated += 1
+                    elif q['type'] == 'true_false' and tf_generated < tf_count:
+                        # Ensure TF choices are formatted properly
+                        tf_choices = q.get('choices', [])
+                        if not tf_choices or len(tf_choices) < 2:
+                            tf_choices = [
+                                {'text': 'True', 'is_correct': True, 'order': 0},
+                                {'text': 'False', 'is_correct': False, 'order': 1},
+                            ]
+                        question = {
+                            'text': q['text'],
+                            'type': 'true_false',
+                            'order': len(questions),
+                            'choices': tf_choices[:2]
+                        }
+                        questions.append(question)
+                        tf_generated += 1
+                    elif q['type'] == 'text' and text_generated < text_count:
+                        question = {
+                            'text': q['text'],
+                            'type': q['type'],
+                            'order': len(questions),
+                            'choices': []
+                        }
+                        questions.append(question)
+                        text_generated += 1
+                    
+                    # Stop if we have enough of both types
+                    if mcq_generated >= mcq_count and tf_generated >= tf_count and text_generated >= text_count:
+                        break
+            
+            # If we don't have enough questions, fill with basic generation
+            if len(questions) < (mcq_count + tf_count + text_count):
+                remaining_mcq = max(0, mcq_count - mcq_generated)
+                remaining_tf = max(0, tf_count - tf_generated)
+                remaining_text = max(0, text_count - text_generated)
+                
+                if remaining_mcq > 0 or remaining_tf > 0 or remaining_text > 0:
+                    basic_mcq = build_mcq_questions(cleaned, remaining_mcq)
+                    basic_tf = build_tf_questions(cleaned, remaining_tf)
+                    basic_text = build_text_questions(cleaned, remaining_text)
+                    
+                    # Add basic questions with proper ordering
+                    for q in basic_mcq:
+                        q['order'] = len(questions)
+                        questions.append(q)
+                    for q in basic_tf:
+                        q['order'] = len(questions)
+                        questions.append(q)
+                    for q in basic_text:
+                        q['order'] = len(questions)
+                        questions.append(q)
+            
+            return JsonResponse({'success': True, 'questions': questions})
+            
+        except Exception as e:
+            # Fallback to basic generation if Gemini fails
+            pass
+    
+    # Basic generation (fallback or when no API key)
+    text_qs = build_text_questions(cleaned, text_count)
+    mcq_qs = build_mcq_questions(cleaned[text_count:], mcq_count) if mcq_count > 0 else []
+    tf_qs = build_tf_questions(cleaned[text_count + mcq_count:], tf_count) if tf_count > 0 else []
+
+    questions = []
+    # Interleave MCQ first, then text (or vice versa). Keep simple: MCQ then text.
+    questions.extend(mcq_qs)
+    for q in tf_qs:
+        q['order'] = len(questions)
+        questions.append(q)
+    # Adjust order continuation
+    for i, q in enumerate(text_qs, start=len(questions)):
+        q['order'] = i
+        questions.append(q)
+
+    return JsonResponse({'success': True, 'questions': questions})
 
 @login_required
 def edit_quiz(request, quiz_id):
@@ -423,6 +730,11 @@ def student_dashboard(request):
     elif completion_filter == 'not_completed':
         quizzes = quizzes.exclude(id__in=completed_quiz_ids)
     
+    # Quizzes that contain text questions (require manual grading)
+    quizzes_requiring_manual = set(
+        Quiz.objects.filter(questions__question_type='text').values_list('id', flat=True)
+    )
+
     return render(request, 'quiz/student_dashboard.html', {
         'quizzes': quizzes,
         'classes': classes,
@@ -431,5 +743,6 @@ def student_dashboard(request):
         'completion_filter': completion_filter,
         'sort_by': sort_by,
         'completed_quiz_ids': completed_quiz_ids,
-        'now': timezone.now()
+        'now': timezone.now(),
+        'quizzes_requiring_manual': quizzes_requiring_manual
     })

@@ -217,10 +217,25 @@
         .hidden {
             display: none;
         }
+        /* Text question styling */
+        .text-answer-wrapper {
+            margin-top: 10px;
+            padding: 12px;
+            border: 2px dashed #e9ecef;
+            border-radius: 8px;
+            background: #fbfdff;
+        }
+        .text-answer-wrapper input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 <body>
-    <a href="{% url 'home' %}" class="back-btn">← Back to Home</a>
+    <a href="{% url 'dashboard' %}" class="back-btn">← Back to Dashboard</a>
     
     <div class="container">
         <div class="header">
@@ -261,6 +276,20 @@
                 <!-- Questions Section -->
                 <div class="form-section">
                     <h3>❓ Questions</h3>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label>Generate from document (txt/md/pdf/docx)</label>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                            <input type="file" id="gen-doc" accept=".txt,.md,.pdf,.docx">
+                            <span>MCQ:</span>
+                            <input type="number" id="gen-count-mcq" min="0" max="50" value="0" style="width:100px;">
+                            <span>True/False:</span>
+                            <input type="number" id="gen-count-tf" min="0" max="50" value="0" style="width:100px;">
+                            <span>Text:</span>
+                            <input type="number" id="gen-count-text" min="0" max="50" value="5" style="width:100px;">
+                            <button type="button" id="gen-btn" class="btn btn-secondary">Generate Questions</button>
+                        </div>
+                        <small>Upload notes and choose how many MCQ and Text questions to auto-generate. AI-powered generation will be used automatically.</small>
+                    </div>
                     <div id="questions-container">
                         <!-- Questions will be added here dynamically -->
                     </div>
@@ -269,7 +298,6 @@
                 
                 <!-- Actions -->
                 <div class="actions">
-                    <button type="button" id="preview-quiz" class="btn btn-secondary">Preview Quiz</button>
                     <button type="submit" id="save-quiz" class="btn btn-primary">Save Quiz</button>
                 </div>
             </form>
@@ -323,6 +351,10 @@
                         </div>
                         <button type="button" class="btn btn-secondary btn-small" onclick="addChoice(${questionCount})">+ Add Choice</button>
                     </div>
+
+                    <div class="text-answer-wrapper hidden" id="text_${questionCount}">
+                        <input type="text" placeholder="Student will type the answer here (preview)" disabled>
+                    </div>
                 </div>
             `;
             
@@ -345,10 +377,13 @@
                     typeInput.value = this.dataset.type;
                     
                     // Show/hide choices based on type
+                    const textPreview = document.getElementById(`text_${questionNum}`);
                     if (this.dataset.type === 'text') {
                         choicesContainer.style.display = 'none';
+                        textPreview.classList.remove('hidden');
                     } else {
                         choicesContainer.style.display = 'block';
+                        textPreview.classList.add('hidden');
                     }
                     
                     // Special handling for True/False questions
@@ -467,6 +502,93 @@
         
         // Add question button
         document.getElementById('add-question').addEventListener('click', addQuestion);
+
+        // Generate questions from document
+        document.getElementById('gen-btn').addEventListener('click', async function() {
+            const fileInput = document.getElementById('gen-doc');
+            const mcqInput = document.getElementById('gen-count-mcq');
+            const tfInput = document.getElementById('gen-count-tf');
+            const textInput = document.getElementById('gen-count-text');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please choose a .txt or .md file');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('document', fileInput.files[0]);
+            formData.append('mcq_count', mcqInput.value || '0');
+            formData.append('text_count', textInput.value || '5');
+            formData.append('tf_count', tfInput.value || '0');
+
+            try {
+                const response = await fetch('{% url "generate_questions" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: formData
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    alert(result.error || 'Failed to generate questions');
+                    return;
+                }
+
+                // Reset any existing questions so numbering starts at 1
+                document.getElementById('questions-container').innerHTML = '';
+                questionCount = 0;
+
+                // Insert generated questions (support MCQ and Text)
+                result.questions.forEach(q => {
+                    addQuestion();
+                    const qDiv = document.querySelector(`.question-item[data-question="${questionCount}"]`);
+                    qDiv.querySelector(`input[name="question_${questionCount}_text"]`).value = q.text;
+                    qDiv.querySelector(`input[name="question_${questionCount}_type"]`).value = q.type;
+                    const typeBtns = qDiv.querySelectorAll('.type-btn');
+                    typeBtns.forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.type === q.type);
+                    });
+                    const choicesContainer = qDiv.querySelector('.choices-container');
+                    const preview = qDiv.querySelector(`#text_${questionCount}`);
+                    if (q.type === 'text') {
+                        choicesContainer.style.display = 'none';
+                        if (preview) preview.classList.remove('hidden');
+                    } else {
+                        choicesContainer.innerHTML = '';
+                        if (Array.isArray(q.choices)) {
+                            q.choices.forEach((c, idx) => {
+                                const div = document.createElement('div');
+                                div.className = 'choice-item';
+                                div.innerHTML = `
+                                    <input type=\"text\" placeholder=\"Choice ${idx + 1}\" name=\"question_${questionCount}_choice_${idx + 1}_text\" value=\"${c.text}\"> 
+                                    <input type=\"checkbox\" name=\"question_${questionCount}_choice_${idx + 1}_correct\" ${c.is_correct ? 'checked' : ''}> Correct
+                                `;
+                                choicesContainer.appendChild(div);
+                            });
+                        }
+                        if (preview) preview.classList.add('hidden');
+                        choicesContainer.style.display = 'block';
+                        // Special handling for True/False generated questions
+                        if (q.type === 'true_false') {
+                            // Ensure exactly two choices True/False exist
+                            if (choicesContainer.children.length === 0) {
+                                const tfHtml = `
+                                    <div class=\"choice-item\"> 
+                                        <input type=\"text\" value=\"True\" readonly name=\"question_${questionCount}_choice_1_text\"> 
+                                        <input type=\"checkbox\" name=\"question_${questionCount}_choice_1_correct\" ${q.choices && q.choices[0] && q.choices[0].is_correct ? 'checked' : ''}> Correct 
+                                    </div>
+                                    <div class=\"choice-item\"> 
+                                        <input type=\"text\" value=\"False\" readonly name=\"question_${questionCount}_choice_2_text\"> 
+                                        <input type=\"checkbox\" name=\"question_${questionCount}_choice_2_correct\" ${(q.choices && q.choices[1] && q.choices[1].is_correct) ? 'checked' : ''}> Correct 
+                                    </div>`;
+                                choicesContainer.innerHTML = tfHtml;
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        });
     </script>
 </body>
 </html>

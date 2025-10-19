@@ -438,8 +438,12 @@
                                     </div>
                                     
                                     {% if quiz.my_attempts and quiz.my_attempts.0 %}
-                                        <div class="quiz-meta" style="color:#28a745; font-weight:600;">
-                                            Your Score: {{ quiz.my_attempts.0.score }}/{{ quiz.my_attempts.0.total_questions }} ({{ quiz.my_attempts.0.percentage }}%)
+                                        <div class="quiz-meta" style="font-weight:600;">
+                                            {% if quiz.id in quizzes_requiring_manual %}
+                                                <span style="color:#fd7e14;">Waiting for Correction</span>
+                                            {% else %}
+                                                <span style="color:#28a745;">Your Score: {{ quiz.my_attempts.0.score }}/{{ quiz.my_attempts.0.total_questions }} ({{ quiz.my_attempts.0.percentage }}%)</span>
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                     

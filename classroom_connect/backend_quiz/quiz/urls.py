@@ -17,6 +17,7 @@ urlpatterns = [
     
     # Quiz management (admin only)
     path("create-quiz/", views.create_quiz, name="create_quiz"),
+    path("generate-questions/", views.generate_questions_from_document, name="generate_questions"),
     path("edit-quiz/<int:quiz_id>/", views.edit_quiz, name="edit_quiz"),
     path("delete-quiz/<int:quiz_id>/", views.delete_quiz, name="delete_quiz"),
     
